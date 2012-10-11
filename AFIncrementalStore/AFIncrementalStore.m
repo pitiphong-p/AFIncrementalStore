@@ -533,6 +533,23 @@ static NSDate * AFLastModifiedDateFromHTTPHeaders(NSDictionary *headers) {
                 
                 [childContext performBlock:^{
                     [self insertOrUpdateObjectsFromRepresentations:representationOrArrayOfRepresentations ofEntity:relationship.destinationEntity fromResponse:operation.response withContext:childContext error:error completionBlock:^(NSArray *managedObjects, NSArray *backingObjects) {
+                        NSManagedObjectContext *backingContext = [self backingManagedObjectContext];
+                        
+                        NSManagedObject *managedObject = [childContext objectWithID:objectID];
+                        NSManagedObject *backingObject = [backingContext existingObjectWithID:objectID error:nil];
+                        if ([relationship isToMany]) {
+                            if ([relationship isOrdered]) {
+                                [managedObject setValue:[NSOrderedSet orderedSetWithArray:managedObjects] forKey:relationship.name];
+                                [backingObject setValue:[NSOrderedSet orderedSetWithArray:managedObjects] forKey:relationship.name];
+                            } else {
+                                [managedObject setValue:[NSSet setWithArray:managedObjects] forKey:relationship.name];
+                                [backingObject setValue:[NSSet setWithArray:managedObjects] forKey:relationship.name];
+                            }
+                        } else {
+                            [managedObject setValue:[managedObjects lastObject] forKey:relationship.name];
+                            [backingObject setValue:[backingObjects lastObject] forKey:relationship.name];
+                        }
+                        
                         if (![[self backingManagedObjectContext] save:error] || ![childContext save:error]) {
                             NSLog(@"Error: %@", *error);
                         }
